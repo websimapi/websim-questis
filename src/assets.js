@@ -5,14 +5,17 @@ export const assets = {
         wall: new Image(),
         floor: new Image(),
         stairs: new Image(),
-        chest: new Image()
+        chest: new Image(),
+        key: new Image()
     },
     sounds: {
         step: "step.mp3",
         attack: "attack.mp3",
         hit: "hit.mp3",
         pickup: "pickup.mp3",
-        win: "win.mp3"
+        win: "win.mp3",
+        locked: "locked.mp3",
+        unlock: "unlock.mp3"
     }
 };
 

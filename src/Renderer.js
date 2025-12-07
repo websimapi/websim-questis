@@ -74,6 +74,7 @@ export class Renderer {
             let img = null;
             if (obj.type === 'stairs') img = assets.images.stairs;
             if (obj.type === 'chest') img = assets.images.chest;
+            if (obj.type === 'key') img = assets.images.key;
 
             if (img) {
                 this.ctx.drawImage(img, px, py, effectiveTileSize, effectiveTileSize);

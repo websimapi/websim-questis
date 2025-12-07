@@ -56,4 +56,36 @@ export class MapGen {
             }
         }
     }
+
+    // A simple BFS to check connectivity and distance
+    getPath(map, start, end) {
+        const queue = [{ x: start.x, y: start.y, dist: 0 }];
+        const visited = new Set();
+        visited.add(`${start.x},${start.y}`);
+
+        while (queue.length > 0) {
+            const current = queue.shift();
+            if (current.x === end.x && current.y === end.y) {
+                return current.dist;
+            }
+
+            const dirs = [
+                { x: 0, y: -1 }, { x: 0, y: 1 },
+                { x: -1, y: 0 }, { x: 1, y: 0 }
+            ];
+
+            for (const dir of dirs) {
+                const nx = current.x + dir.x;
+                const ny = current.y + dir.y;
+                const key = `${nx},${ny}`;
+
+                if (nx >= 0 && nx < this.width && ny >= 0 && ny < this.height &&
+                    map[ny][nx] === 0 && !visited.has(key)) {
+                    visited.add(key);
+                    queue.push({ x: nx, y: ny, dist: current.dist + 1 });
+                }
+            }
+        }
+        return -1; // No path
+    }
 }

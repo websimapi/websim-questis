@@ -3,10 +3,10 @@ import { soundManager } from './SoundManager.js';
 
 export class Game {
     constructor() {
-        this.mapWidth = 20;
-        this.mapHeight = 20;
+        this.mapWidth = 25; // Slightly larger for better exploration
+        this.mapHeight = 25;
         this.level = 1;
-        this.player = { x: 1, y: 1, hp: 10, maxHp: 10, gold: 0 };
+        this.player = { x: 1, y: 1, hp: 10, maxHp: 10, gold: 0, hasKey: false };
         this.map = []; // 2D array
         this.enemies = [];
         this.objects = [];
@@ -17,20 +17,56 @@ export class Game {
 
     initLevel() {
         const gen = new MapGen(this.mapWidth, this.mapHeight);
-        this.map = gen.generate();
         
-        // Spawn Player
-        const startPos = gen.findFreeSpot(this.map);
-        this.player.x = startPos.x;
-        this.player.y = startPos.y;
+        // Retry loop to ensure valid map with connected objectives
+        let attempts = 0;
+        while (attempts < 10) {
+            this.map = gen.generate();
+            
+            // Spawn Player
+            const startPos = gen.findFreeSpot(this.map);
+            
+            // Spawn Key - Try to put it somewhat far
+            let keyPos = gen.findFreeSpot(this.map);
+            let distToKey = gen.getPath(this.map, startPos, keyPos);
+            
+            // Attempt to find a better key spot if too close
+            for(let i=0; i<5; i++) {
+                if (distToKey > 8) break; 
+                const candidate = gen.findFreeSpot(this.map);
+                const d = gen.getPath(this.map, startPos, candidate);
+                if (d > distToKey) {
+                    keyPos = candidate;
+                    distToKey = d;
+                }
+            }
 
-        // Spawn Exit
-        const exitPos = gen.findFreeSpot(this.map); // Might overwrite player, but rare/ok for this demo
-        this.objects = [{ type: 'stairs', x: exitPos.x, y: exitPos.y }];
+            // Spawn Exit - Try to put it far from start AND key
+            let exitPos = gen.findFreeSpot(this.map);
+            let distToExit = gen.getPath(this.map, startPos, exitPos);
+            let keyToExit = gen.getPath(this.map, keyPos, exitPos);
+
+            // Simple check: Valid paths must exist
+            if (distToKey !== -1 && distToExit !== -1 && keyToExit !== -1) {
+                // Apply positions
+                this.player.x = startPos.x;
+                this.player.y = startPos.y;
+                this.player.hasKey = false;
+                
+                this.objects = [
+                    { type: 'stairs', x: exitPos.x, y: exitPos.y },
+                    { type: 'key', x: keyPos.x, y: keyPos.y }
+                ];
+                break; // Valid map found
+            }
+            attempts++;
+        }
+        
+        // If loop finishes without break (rare), we rely on last generated.
 
         // Spawn Enemies
         this.enemies = [];
-        const enemyCount = 3 + Math.floor(this.level * 0.5);
+        const enemyCount = 4 + Math.floor(this.level * 0.7);
         for(let i=0; i<enemyCount; i++) {
             const pos = gen.findFreeSpot(this.map);
             // Don't spawn on player
@@ -46,12 +82,13 @@ export class Game {
         }
 
         // Spawn Chests
-        if (Math.random() > 0.5) {
+        if (Math.random() > 0.4) {
             const pos = gen.findFreeSpot(this.map);
             this.objects.push({ type: 'chest', x: pos.x, y: pos.y, opened: false });
         }
 
-        this.addLog(`Floor ${this.level} entered.`);
+        this.addLog(`Floor ${this.level}: Find the Key!`);
+        this.updateStats();
     }
 
     addLog(msg) {
@@ -67,6 +104,15 @@ export class Game {
         document.getElementById('max-hp-val').innerText = this.player.maxHp;
         document.getElementById('gold-val').innerText = this.player.gold;
         document.getElementById('level-text').innerText = `Floor: ${this.level}`;
+        
+        const questText = document.getElementById('quest-text');
+        if (this.player.hasKey) {
+            questText.innerText = "Quest: Enter Stairs";
+            questText.style.color = "#4ff";
+        } else {
+            questText.innerText = "Quest: Find Key";
+            questText.style.color = "#fff";
+        }
     }
 
     movePlayer(dx, dy) {
@@ -97,9 +143,19 @@ export class Game {
         const obj = this.objects.find(o => o.x === this.player.x && o.y === this.player.y);
         if (obj) {
             if (obj.type === 'stairs') {
-                soundManager.play('win');
-                this.level++;
-                this.initLevel();
+                if (this.player.hasKey) {
+                    soundManager.play('win');
+                    this.level++;
+                    this.initLevel();
+                } else {
+                    soundManager.play('locked');
+                    this.addLog("Locked! Need a key.");
+                }
+            } else if (obj.type === 'key') {
+                this.player.hasKey = true;
+                soundManager.play('unlock');
+                this.addLog("Got the Key!");
+                this.objects = this.objects.filter(o => o !== obj);
                 this.updateStats();
             } else if (obj.type === 'chest' && !obj.opened) {
                 obj.opened = true;
