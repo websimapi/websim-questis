@@ -97,10 +97,14 @@ export class Renderer {
         });
 
         // Draw Player
-        // Lerp logic for smooth movement could go here in future
         const px = game.player.x * effectiveTileSize;
         const py = game.player.y * effectiveTileSize;
-        this.ctx.drawImage(assets.images.player, px, py, effectiveTileSize, effectiveTileSize);
+        
+        let playerImg = assets.images.player; // Default warrior
+        if (game.player.classType === 'mage') playerImg = assets.images.mage;
+        if (game.player.classType === 'archer') playerImg = assets.images.archer;
+        
+        this.ctx.drawImage(playerImg, px, py, effectiveTileSize, effectiveTileSize);
 
         this.ctx.restore();
     }

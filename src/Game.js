@@ -2,12 +2,41 @@ import { MapGen } from './MapGen.js';
 import { soundManager } from './SoundManager.js';
 
 export class Game {
-    constructor() {
-        this.mapWidth = 25; // Slightly larger for better exploration
+    constructor(playerClass = 'warrior') {
+        this.mapWidth = 25;
         this.mapHeight = 25;
         this.level = 1;
-        this.player = { x: 1, y: 1, hp: 10, maxHp: 10, gold: 0, hasKey: false };
-        this.map = []; // 2D array
+        
+        // Initial Stats based on Class
+        let hp = 10;
+        let maxHp = 10;
+        let dmg = 1; // Base damage mod
+        
+        if (playerClass === 'mage') {
+            hp = 6;
+            maxHp = 6;
+            dmg = 2; 
+        } else if (playerClass === 'archer') {
+            hp = 8;
+            maxHp = 8;
+            dmg = 1;
+        }
+
+        this.player = { 
+            x: 1, 
+            y: 1, 
+            classType: playerClass,
+            hp: hp, 
+            maxHp: maxHp, 
+            dmgMod: dmg,
+            level: 1,
+            xp: 0,
+            xpToNext: 20,
+            gold: 0, 
+            hasKey: false 
+        };
+
+        this.map = []; 
         this.enemies = [];
         this.objects = [];
         this.log = [];
@@ -103,6 +132,9 @@ export class Game {
         document.getElementById('hp-val').innerText = this.player.hp;
         document.getElementById('max-hp-val').innerText = this.player.maxHp;
         document.getElementById('gold-val').innerText = this.player.gold;
+        document.getElementById('lvl-val').innerText = this.player.level;
+        document.getElementById('xp-val').innerText = this.player.xp;
+        document.getElementById('xp-req-val').innerText = this.player.xpToNext;
         document.getElementById('level-text').innerText = `Floor: ${this.level}`;
         
         const questText = document.getElementById('quest-text');
@@ -170,12 +202,47 @@ export class Game {
     }
 
     attackEnemy(enemy) {
-        enemy.hp--;
+        let dmg = 1;
+        
+        // Class calculations
+        if (this.player.classType === 'mage') {
+            dmg = 2 + Math.floor(this.player.level / 2); // Mage scales damage faster
+        } else if (this.player.classType === 'archer') {
+            dmg = 1 + Math.floor(this.player.level / 3);
+            if (Math.random() < 0.3) { // 30% Crit chance
+                dmg *= 2;
+                this.addLog("Critical Hit!");
+            }
+        } else {
+            // Warrior
+            dmg = 1 + Math.floor(this.player.level / 3);
+        }
+
+        enemy.hp -= dmg;
         soundManager.play('attack');
-        this.addLog(`You hit the blob!`);
+        
         if (enemy.hp <= 0) {
             this.enemies = this.enemies.filter(e => e !== enemy);
             this.addLog(`Blob defeated!`);
+            this.gainXp(10 + (this.level * 2));
+        } else {
+            this.addLog(`You hit blob for ${dmg}!`);
+        }
+    }
+
+    gainXp(amount) {
+        this.player.xp += amount;
+        if (this.player.xp >= this.player.xpToNext) {
+            this.player.level++;
+            this.player.xp -= this.player.xpToNext;
+            this.player.xpToNext = Math.floor(this.player.xpToNext * 1.5);
+            
+            // Stat up
+            this.player.maxHp += 2;
+            this.player.hp = this.player.maxHp; // Full heal on level up
+            
+            soundManager.play('unlock'); // Reuse unlock sound for level up
+            this.addLog(`Level Up! You are lvl ${this.player.level}`);
         }
     }
 

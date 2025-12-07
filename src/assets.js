@@ -1,6 +1,8 @@
 export const assets = {
     images: {
-        player: new Image(),
+        player: new Image(), // Warrior
+        mage: new Image(),
+        archer: new Image(),
         enemy: new Image(),
         wall: new Image(),
         floor: new Image(),

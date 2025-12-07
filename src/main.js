@@ -33,16 +33,36 @@ const loop = () => {
 const init = async () => {
     await loadAssets();
     await soundManager.init();    
-    
-    // Start music interaction listener if needed, but we rely on first click for SFX ctx resume
-    
-    game = new Game();    
-    
-    // Initial UI update
-    game.updateStats();
 
-    // Remove loading logic if any
-    requestAnimationFrame(loop);
+    // Setup Class Selection
+    const screen = document.getElementById('class-selection-screen');
+    const options = document.querySelectorAll('.class-card');
+    
+    options.forEach(card => {
+        card.addEventListener('click', (e) => {
+            const cls = card.dataset.class;
+            
+            // Init Game
+            if (soundManager.ctx.state === 'suspended') soundManager.ctx.resume();
+            
+            game = new Game(cls);
+            game.updateStats();
+            
+            screen.style.display = 'none';
+            requestAnimationFrame(loop);
+        });
+        
+        // Also allow touch
+        card.addEventListener('touchstart', (e) => {
+            e.preventDefault(); // prevent mouse emulation
+            const cls = card.dataset.class;
+            if (soundManager.ctx.state === 'suspended') soundManager.ctx.resume();
+            game = new Game(cls);
+            game.updateStats();
+            screen.style.display = 'none';
+            requestAnimationFrame(loop);
+        }, { passive: false });
+    });
 };
 
 // Simple tap to start audio context if needed

@@ -64,6 +64,9 @@ canvas {
     padding: 5px 10px;
     border-radius: 5px;
     font-size: 0.9em;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
 }
 
 #message-log {
@@ -121,4 +124,61 @@ canvas {
 #interact-btn:active {
     transform: scale(0.95);
     background: rgba(200, 30, 30, 0.9);
+}
+
+#class-selection-screen {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.9);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    z-index: 100;
+    pointer-events: auto;
+}
+
+#class-selection-screen h2 {
+    color: white;
+    margin-bottom: 30px;
+    text-shadow: 2px 2px #000;
+}
+
+.class-cards {
+    display: flex;
+    gap: 20px;
+    flex-wrap: wrap;
+    justify-content: center;
+}
+
+.class-card {
+    background: #333;
+    border: 2px solid #555;
+    border-radius: 10px;
+    padding: 20px;
+    width: 120px;
+    text-align: center;
+    color: white;
+    cursor: pointer;
+    transition: transform 0.2s, border-color 0.2s;
+}
+
+.class-card:hover, .class-card:active {
+    transform: scale(1.05);
+    border-color: var(--accent-color);
+    background: #444;
+}
+
+.class-card h3 {
+    margin: 0 0 10px 0;
+    color: var(--accent-color);
+}
+
+.class-card p {
+    font-size: 0.8em;
+    margin: 0;
+    color: #ccc;
 }
