@@ -64,14 +64,17 @@ export class AltarSystem {
                     }
                 ];
 
-                const completion = await window.websim.chat.completions.create({
+                const aiPromise = window.websim.chat.completions.create({
                     messages,
                     json: true
                 });
 
+                const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 4000));
+
+                const completion = await Promise.race([aiPromise, timeoutPromise]);
                 result = JSON.parse(completion.content);
             } catch (aiErr) {
-                console.warn("AI Generation Failed, using fallback", aiErr);
+                console.warn("Altar AI skipped (using fallback):", aiErr.message);
                 result = this.generateFallback(altar, offering);
             }
             
