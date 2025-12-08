@@ -113,11 +113,78 @@ export class CombatSystem {
         game.updateStats();
     }
 
+    attackPlayer(targetId) {
+        const game = this.game;
+        const target = game.persistence.room.peers[targetId];
+        if (!target) return;
+
+        let dmg = 1;
+        let effectType = 'slash';
+        
+        // PvP Balance (halved dmg for longer fights?)
+        if (game.player.classType === 'mage') {
+            dmg = 2 + Math.floor(game.player.level / 2);
+            effectType = 'magic';
+        } else if (game.player.classType === 'archer') {
+            dmg = 1 + Math.floor(game.player.level / 3);
+            effectType = 'arrow';
+            if (Math.random() < 0.3) dmg *= 1.5;
+        } else {
+            dmg = 1 + Math.floor(game.player.level / 3);
+        }
+        dmg += game.player.dmgMod;
+        
+        // Find target pos from presence
+        const pData = game.persistence.room.presence[targetId];
+        if (pData) {
+            this.spawnEffect(pData.x, pData.y, effectType);
+            game.persistence.sendDamage(targetId, dmg, game.persistence.room.clientId);
+            game.addLog(`Attacked ${target.username || 'Player'}!`);
+            soundManager.play('attack');
+        }
+    }
+
+    handleIncomingDamage(amount, attackerId) {
+        const game = this.game;
+        game.player.hp -= amount;
+        soundManager.play('hit');
+        game.addLog(`Took ${amount} damage!`);
+        game.updateStats();
+
+        if (game.player.hp <= 0) {
+            game.player.hp = 0;
+            // Handle Death
+            if (game.inArena) {
+                game.arenaSystem.handleDeath(attackerId);
+            } else {
+                game.addLog(`YOU DIED! Respawning...`);
+                setTimeout(() => game.respawn(), 1000);
+            }
+        }
+    }
+
     isOccupied(x, y) {
         const game = this.game;
         if (x === game.player.x && y === game.player.y) return true;
         if (game.enemies.some(e => e.x === x && e.y === y)) return true;
         if (game.objects.some(o => o.x === x && o.y === y && o.type === 'shopkeeper')) return true;
+        
+        // Check other players (Solid in PvP? Maybe)
+        // Let's make players non-solid to prevent blocking, or solid for tactical?
+        // Let's make solid.
+        if (game.persistence.room && game.persistence.room.presence) {
+            for (const [id, p] of Object.entries(game.persistence.room.presence)) {
+                if (id !== game.persistence.room.clientId) {
+                    // Only collide if in same scope (floor/seed or arena)
+                    if (game.inArena) {
+                        if (p.arenaId === game.arenaSystem.arenaId && p.x === x && p.y === y) return true;
+                    } else {
+                        if (p.floor === game.level && Math.abs(p.seed - game.dungeonSeed) < 0.001 && p.x === x && p.y === y) return true;
+                    }
+                }
+            }
+        }
+
         return false;
     }
 }

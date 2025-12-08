@@ -312,3 +312,30 @@ canvas {
     font-family: inherit;
     font-weight: bold;
 }
+
+#arena-ui {
+    position: absolute;
+    top: 60px;
+    right: 10px;
+    width: 200px;
+    background: rgba(50, 0, 0, 0.8);
+    border: 2px solid #f00;
+    color: white;
+    padding: 10px;
+    border-radius: 8px;
+    text-align: center;
+    display: none;
+    flex-direction: column;
+    gap: 5px;
+}
+
+#arena-ui h2 {
+    margin: 0;
+    color: #f00;
+    text-shadow: 1px 1px 0 #000;
+}
+
+#arena-timer {
+    font-size: 1.2em;
+    font-weight: bold;
+}

@@ -114,8 +114,15 @@ export class Renderer {
                 const pData = presence[clientId];
                 if (!pData) return;
                 
-                // Only draw if on same floor and same seed
-                if (pData.floor === game.level && Math.abs(pData.seed - game.dungeonSeed) < 0.0001) {
+                // Check visibility context
+                let visible = false;
+                if (game.inArena) {
+                    if (pData.arenaId === game.arenaSystem.arenaId) visible = true;
+                } else {
+                    if (!pData.arenaId && pData.floor === game.level && Math.abs(pData.seed - game.dungeonSeed) < 0.0001) visible = true;
+                }
+
+                if (visible) {
                      const ppx = pData.x * effectiveTileSize;
                      const ppy = pData.y * effectiveTileSize;
                      

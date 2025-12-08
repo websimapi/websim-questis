@@ -8,6 +8,7 @@ export class ShopSystem {
     async openShop() {
         const game = this.game;
         game.inShop = true;
+        game.broadcastPresence(); // Sync inShop status
         document.getElementById('shop-ui').style.display = 'flex';
         document.getElementById('shop-items-container').innerHTML = '';
         document.getElementById('shop-loading').style.display = 'block';
@@ -106,6 +107,7 @@ export class ShopSystem {
     closeShop() {
         const game = this.game;
         game.inShop = false;
+        game.broadcastPresence(); // Sync inShop status
         document.getElementById('shop-ui').style.display = 'none';
     }
 }

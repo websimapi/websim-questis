@@ -2,6 +2,7 @@ import { soundManager } from './SoundManager.js';
 import { LevelManager } from './LevelManager.js';
 import { CombatSystem } from './CombatSystem.js';
 import { ShopSystem } from './ShopSystem.js';
+import { ArenaSystem } from './ArenaSystem.js';
 
 export class Game {
     constructor(persistence, slotIndex, loadData, newClass) {
@@ -14,10 +15,12 @@ export class Game {
         this.effects = [];
         this.log = [];
         this.inShop = false;
+        this.inArena = false;
         
         this.levelManager = new LevelManager(this);
         this.combat = new CombatSystem(this);
         this.shop = new ShopSystem(this);
+        this.arenaSystem = new ArenaSystem(this);
 
         if (loadData) {
             // Load existing
@@ -64,8 +67,14 @@ export class Game {
         const closeBtn = document.getElementById('close-shop-btn');
         if (closeBtn) closeBtn.onclick = () => this.shop.closeShop();
         
+        // Subscribe to damage
+        this.persistence.subscribeDamage((amt, attackerId) => this.combat.handleIncomingDamage(amt, attackerId));
+
         // Presence loop
-        setInterval(() => this.broadcastPresence(), 1000);
+        setInterval(() => {
+            this.broadcastPresence();
+            if (this.inArena) this.arenaSystem.update();
+        }, 1000);
     }
     
     save() {
@@ -78,7 +87,11 @@ export class Game {
     }
     
     broadcastPresence() {
-        this.persistence.updatePresence(this.player, this.level, this.dungeonSeed);
+        this.persistence.updatePresence(this.player, this.level, this.dungeonSeed, {
+            inShop: this.inShop,
+            arenaId: this.inArena ? this.arenaSystem.arenaId : null,
+            dead: this.player.hp <= 0
+        });
     }
 
     addLog(msg) {
@@ -113,12 +126,32 @@ export class Game {
 
     movePlayer(dx, dy) {
         if (this.inShop) return;
+        if (this.player.hp <= 0) return;
 
         const newX = this.player.x + dx;
         const newY = this.player.y + dy;
 
         if (newY < 0 || newY >= this.mapHeight || newX < 0 || newX >= this.mapWidth) return;
         if (this.map[newY][newX] === 1) return;
+
+        // Check for PvP Player collision/Attack
+        if (this.combat.isOccupied(newX, newY)) {
+             // Try to find player at that spot to attack
+             const peers = this.persistence.room.presence;
+             for (const [id, p] of Object.entries(peers)) {
+                 if (id === this.persistence.room.clientId) continue;
+                 // Match context
+                 let match = false;
+                 if (this.inArena && p.arenaId === this.arenaSystem.arenaId) match = true;
+                 if (!this.inArena && p.floor === this.level && Math.abs(p.seed - this.dungeonSeed) < 0.001) match = true;
+
+                 if (match && p.x === newX && p.y === newY) {
+                     this.combat.attackPlayer(id);
+                     this.combat.processTurn(); // Cooldowns?
+                     return;
+                 }
+             }
+        }
 
         const enemy = this.enemies.find(e => e.x === newX && e.y === newY);
         if (enemy) {
@@ -150,7 +183,11 @@ export class Game {
 
         if (obj) {
             if (obj.type === 'stairs') {
-                this.levelManager.enterLevel(this.level + 1, 'down');
+                if (this.inArena) {
+                    this.arenaSystem.leaveArena();
+                } else {
+                    this.levelManager.enterLevel(this.level + 1, 'down');
+                }
             } else if (obj.type === 'stairs_up') {
                 if (this.level > 1) {
                     this.levelManager.enterLevel(this.level - 1, 'up');

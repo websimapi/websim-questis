@@ -9,6 +9,22 @@ export class LevelManager {
     enterLevel(levelNum, entryMethod = 'down') {
         const game = this.game;
 
+        // Arena Trigger Logic
+        if (entryMethod === 'down' && !game.inArena) {
+             // Check if anyone is in a shop
+             const peers = game.persistence.room ? Object.values(game.persistence.room.presence) : [];
+             const shopActive = peers.some(p => p.inShop);
+             
+             if (shopActive && Math.random() < 0.25) { // 25% chance if condition met
+                 this.triggerArena();
+                 return;
+             }
+        }
+        
+        // Clear Arena flag if we are entering a normal level
+        game.inArena = false;
+        document.getElementById('arena-ui').style.display = 'none';
+
         // Save current floor state if exists
         if (game.floors[game.level]) {
             game.floors[game.level].enemies = game.enemies;
@@ -212,5 +228,28 @@ export class LevelManager {
 
         game.addLog("BOSS FIGHT!");
         game.updateStats();
+    }
+
+    triggerArena() {
+        const game = this.game;
+        // Look for open arena
+        const arenas = game.persistence.room.roomState.arenas || {};
+        const now = Date.now();
+        let joined = false;
+        
+        // Try join existing waiting arena
+        for (const [id, data] of Object.entries(arenas)) {
+            if (now - data.created < 30000) { // Join window < 30s
+                game.arenaSystem.enterArena(id);
+                joined = true;
+                break;
+            }
+        }
+        
+        if (!joined) {
+            // Create new
+            const newId = `arena_${Date.now()}_${Math.floor(Math.random()*1000)}`;
+            game.arenaSystem.enterArena(newId);
+        }
     }
 }
