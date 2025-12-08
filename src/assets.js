@@ -3,10 +3,14 @@ export const assets = {
         player: new Image(), // Warrior
         mage: new Image(),
         archer: new Image(),
-        enemy: new Image(),
+        enemy: new Image(), // Slime
+        skeleton: new Image(),
+        boss: new Image(),
         wall: new Image(),
         floor: new Image(),
         stairs: new Image(),
+        stairs_up: new Image(),
+        boss_door: new Image(),
         chest: new Image(),
         key: new Image(),
         slash: new Image(),
@@ -33,7 +37,6 @@ export const loadAssets = async () => {
             img.onload = () => resolve();
             img.onerror = () => {
                 console.warn(`Failed to load image: ${key}.png`);
-                // Create a placeholder colored rect if image fails
                 resolve(); 
             }
         });

@@ -73,6 +73,8 @@ export class Renderer {
             const py = obj.y * effectiveTileSize;
             let img = null;
             if (obj.type === 'stairs') img = assets.images.stairs;
+            if (obj.type === 'stairs_up') img = assets.images.stairs_up;
+            if (obj.type === 'boss_door') img = assets.images.boss_door;
             if (obj.type === 'chest') img = assets.images.chest;
             if (obj.type === 'key') img = assets.images.key;
             if (obj.type === 'shopkeeper') img = assets.images.shopkeeper;
@@ -86,7 +88,11 @@ export class Renderer {
         game.enemies.forEach(enemy => {
             const px = enemy.x * effectiveTileSize;
             const py = enemy.y * effectiveTileSize;
-            this.ctx.drawImage(assets.images.enemy, px, py, effectiveTileSize, effectiveTileSize);
+            let img = assets.images.enemy;
+            if (enemy.type === 'skeleton') img = assets.images.skeleton;
+            if (enemy.type === 'boss') img = assets.images.boss;
+            
+            this.ctx.drawImage(img, px, py, effectiveTileSize, effectiveTileSize);
 
             // HP bar for enemy
             if (enemy.hp < enemy.maxHp) {
