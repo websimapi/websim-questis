@@ -86,10 +86,6 @@ export class MapGen {
         }
         return { x: 1, y: 1 };
     }
-                return { x, y };
-            }
-        }
-    }
 
     // A simple BFS to check connectivity and distance
     getPath(map, start, end) {
