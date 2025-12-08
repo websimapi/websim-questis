@@ -16,6 +16,11 @@ export class ShopSystem {
 
         if (!game.floors[game.level].shopItems) {
             try {
+                // If AI previously failed (e.g. HTTP 500), skip remote generation entirely
+                if (window.__aiDisabled) {
+                    throw new Error('AI disabled after previous failure');
+                }
+
                 const aiPromise = window.websim.chat.completions.create({
                     messages: [
                         {
@@ -35,10 +40,18 @@ export class ShopSystem {
 
                 if (!game.inShop) return; // Shop closed during load
 
+                // If the API wrapper indicates failure, mark AI disabled and fall back
+                if (!completion || completion.ok === false) {
+                    window.__aiDisabled = true;
+                    throw new Error('Failed to get chat completion');
+                }
+
                 const items = JSON.parse(completion.content);
                 game.floors[game.level].shopItems = items.items || items;
             } catch (e) {
-                console.warn("Shop generation switched to fallback due to:", e.message);
+                console.warn("Shop generation switched to fallback due to:", e.message || e);
+                // Any hard failure (like HTTP 500) permanently disables further AI calls this session
+                window.__aiDisabled = true;
                 game.floors[game.level].shopItems = this.generateFallbackItems(game.player.level);
             }
         }

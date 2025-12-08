@@ -39,6 +39,11 @@ export class AltarSystem {
             let result;
 
             try {
+                // If AI previously failed, skip remote call and go straight to fallback
+                if (window.__aiDisabled) {
+                    throw new Error('AI disabled after previous failure');
+                }
+
                 const messages = [
                     {
                         role: "system",
@@ -72,9 +77,18 @@ export class AltarSystem {
                 const timeoutPromise = new Promise((_, reject) => setTimeout(() => reject(new Error("Timeout")), 4000));
 
                 const completion = await Promise.race([aiPromise, timeoutPromise]);
+
+                // If the API wrapper indicates failure, mark AI disabled and fall back
+                if (!completion || completion.ok === false) {
+                    window.__aiDisabled = true;
+                    throw new Error('Failed to get chat completion');
+                }
+
                 result = JSON.parse(completion.content);
             } catch (aiErr) {
-                console.warn("Altar AI skipped (using fallback):", aiErr.message);
+                console.warn("Altar AI skipped (using fallback):", aiErr.message || aiErr);
+                // Any hard failure (like HTTP 500) permanently disables further AI calls this session
+                window.__aiDisabled = true;
                 result = this.generateFallback(altar, offering);
             }
             
