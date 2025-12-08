@@ -36,38 +36,44 @@ export class AltarSystem {
             if (game.player.inventory['demon_horn']) offering.push({ type: 'demon_horn', count: game.player.inventory['demon_horn'] });
 
             const isEvil = altar.subtype === 'shadow';
+            let result;
 
-            const messages = [
-                {
-                    role: "system",
-                    content: `You are a dungeon master AI. A player is offering monster remains at a ${altar.subtype} altar.
-                    Generate a temporary buff (or curse+reward if shadow altar).
-                    
-                    Input: ${JSON.stringify(offering)}
-                    Altar Type: ${altar.subtype} (Effects: Vitality=HP, Fortune=Gold, Might=Dmg, Wisdom=XP, Shadow=RareItem+Curse, Protection=Def, Luck=Crit)
-
-                    If Shadow Altar: GIVE A POWERFUL PERMANENT ITEM (name, type=weapon/armor) BUT INFLICT A CURSE (Half Max HP).
-                    If Normal Altar: Give a buff based on amount of bones. More bones = stronger/longer.
-                    
-                    Response Format JSON:
+            try {
+                const messages = [
                     {
-                        "buffName": "string",
-                        "stat": "dmg" | "maxHp" | "maxHpMult" | "goldMult" | "xpMult", 
-                        "val": number (e.g. 2, 0.5), 
-                        "durationFloors": number,
-                        "description": "string",
-                        "isCurse": boolean,
-                        "rewardItem": { "name": "string", "type": "weapon", "stat": "dmg+5" } (Only for Shadow)
-                    }`
-                }
-            ];
+                        role: "system",
+                        content: `You are a dungeon master AI. A player is offering monster remains at a ${altar.subtype} altar.
+                        Generate a temporary buff (or curse+reward if shadow altar).
+                        
+                        Input: ${JSON.stringify(offering)}
+                        Altar Type: ${altar.subtype} (Effects: Vitality=HP, Fortune=Gold, Might=Dmg, Wisdom=XP, Shadow=RareItem+Curse, Protection=Def, Luck=Crit)
 
-            const completion = await window.websim.chat.completions.create({
-                messages,
-                json: true
-            });
+                        If Shadow Altar: GIVE A POWERFUL PERMANENT ITEM (name, type=weapon/armor) BUT INFLICT A CURSE (Half Max HP).
+                        If Normal Altar: Give a buff based on amount of bones. More bones = stronger/longer.
+                        
+                        Response Format JSON:
+                        {
+                            "buffName": "string",
+                            "stat": "dmg" | "maxHp" | "maxHpMult" | "goldMult" | "xpMult", 
+                            "val": number (e.g. 2, 0.5), 
+                            "durationFloors": number,
+                            "description": "string",
+                            "isCurse": boolean,
+                            "rewardItem": { "name": "string", "type": "weapon", "stat": "dmg+5" } (Only for Shadow)
+                        }`
+                    }
+                ];
 
-            const result = JSON.parse(completion.content);
+                const completion = await window.websim.chat.completions.create({
+                    messages,
+                    json: true
+                });
+
+                result = JSON.parse(completion.content);
+            } catch (aiErr) {
+                console.warn("AI Generation Failed, using fallback", aiErr);
+                result = this.generateFallback(altar, offering);
+            }
             
             this.applyResult(result, isEvil);
 
@@ -84,6 +90,45 @@ export class AltarSystem {
             game.showingAltarDialog = false;
             game.updateStats();
         }
+    }
+
+    generateFallback(altar, offering) {
+        let value = 0;
+        offering.forEach(o => {
+            if (o.type === 'bone') value += o.count * 1;
+            if (o.type === 'slime_goo') value += o.count * 2;
+            if (o.type === 'demon_horn') value += o.count * 5;
+        });
+
+        const type = altar.subtype;
+        let result = {
+            buffName: "Blessing",
+            stat: "maxHp",
+            val: 5,
+            durationFloors: 5,
+            description: "The gods smile upon you.",
+            isCurse: false
+        };
+
+        if (type === 'vitality') { result.stat = 'maxHp'; result.val = Math.max(5, value * 2); result.buffName = "Vitality"; }
+        else if (type === 'might') { result.stat = 'dmg'; result.val = Math.max(1, Math.floor(value / 5)); result.buffName = "Might"; }
+        else if (type === 'wisdom') { result.stat = 'xpMult'; result.val = 1.5; result.buffName = "Wisdom"; }
+        else if (type === 'fortune') { result.stat = 'goldMult'; result.val = 1.5; result.buffName = "Fortune"; }
+        else if (type === 'shadow') {
+            result.isCurse = true;
+            result.stat = 'maxHpMult';
+            result.val = 0.5;
+            result.durationFloors = 999;
+            result.buffName = "Shadow Pact";
+            result.description = "Power at a price.";
+            result.rewardItem = { name: "Shadow Blade", type: "weapon", stat: "dmg+5" };
+        }
+        
+        if (!result.isCurse) {
+            result.durationFloors = 3 + Math.floor(value / 3);
+        }
+
+        return result;
     }
 
     applyResult(result, isEvil) {
