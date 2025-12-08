@@ -4,7 +4,23 @@ export class MapGen {
         this.width = width;
         this.height = height;
         this.seed = seed || Math.random();
-        this.rng = this.sfc32(this.seed, this.seed + 1, this.seed + 2, this.seed + 3);
+        
+        // Handle float/string seeds properly for RNG initialization
+        let s = this.seed;
+        if (typeof s === 'string') {
+            let h = 2166136261 >>> 0;
+            for (let i = 0; i < s.length; i++) {
+                h = Math.imul(h ^ s.charCodeAt(i), 16777619);
+            }
+            s = h >>> 0;
+        } else {
+            // Map float (0-1) or combined float seeds to full 32-bit range
+            // Use fractional part significantly to ensure distinct seeds from floats
+            s = (s * 4294967296) >>> 0;
+        }
+        
+        // Use decent constants for seeding sfc32 to avoid zero-collapse
+        this.rng = this.sfc32(s, s + 0x9E3779B9, s + 0x243F6A88, s + 0xB7E15162);
     }
 
     // Simple seeded RNG

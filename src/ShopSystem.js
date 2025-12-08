@@ -16,7 +16,7 @@ export class ShopSystem {
 
         if (!game.floors[game.level].shopItems) {
             try {
-                const completion = await websim.chat.completions.create({
+                const completion = await window.websim.chat.completions.create({
                     messages: [
                         {
                             role: "system",
@@ -28,6 +28,9 @@ export class ShopSystem {
                     ],
                     json: true
                 });
+
+                if (!game.inShop) return; // Shop closed during load
+
                 const items = JSON.parse(completion.content);
                 game.floors[game.level].shopItems = items.items || items;
             } catch (e) {
@@ -39,6 +42,7 @@ export class ShopSystem {
             }
         }
 
+        if (!game.inShop) return;
         this.renderShopItems(game.floors[game.level].shopItems);
         document.getElementById('shop-loading').style.display = 'none';
     }
