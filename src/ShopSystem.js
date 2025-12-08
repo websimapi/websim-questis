@@ -49,7 +49,10 @@ export class ShopSystem {
                 const items = JSON.parse(completion.content);
                 game.floors[game.level].shopItems = items.items || items;
             } catch (e) {
-                console.warn("Shop generation switched to fallback due to:", e.message || e);
+                // Simplify error object for console to avoid serialization issues in analytics
+                const errMsg = e ? (e.message || e.toString()) : "Unknown Error";
+                console.warn("Shop generation switched to fallback:", errMsg);
+                
                 // Any hard failure (like HTTP 500) permanently disables further AI calls this session
                 window.__aiDisabled = true;
                 game.floors[game.level].shopItems = this.generateFallbackItems(game.player.level);

@@ -86,7 +86,10 @@ export class AltarSystem {
 
                 result = JSON.parse(completion.content);
             } catch (aiErr) {
-                console.warn("Altar AI skipped (using fallback):", aiErr.message || aiErr);
+                // Simplify error object for console to avoid serialization issues in analytics
+                const errMsg = aiErr ? (aiErr.message || aiErr.toString()) : "Unknown Error";
+                console.warn("Altar AI skipped (using fallback):", errMsg);
+                
                 // Any hard failure (like HTTP 500) permanently disables further AI calls this session
                 window.__aiDisabled = true;
                 result = this.generateFallback(altar, offering);
