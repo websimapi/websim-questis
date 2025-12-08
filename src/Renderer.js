@@ -103,6 +103,40 @@ export class Renderer {
             }
         });
 
+        // Draw Other Players
+        if (game.persistence && game.persistence.room && game.persistence.room.peers) {
+            const peers = game.persistence.room.peers;
+            const presence = game.persistence.room.presence;
+            
+            Object.keys(peers).forEach(clientId => {
+                if (clientId === game.persistence.room.clientId) return; // Skip self
+                
+                const pData = presence[clientId];
+                if (!pData) return;
+                
+                // Only draw if on same floor and same seed
+                if (pData.floor === game.level && Math.abs(pData.seed - game.dungeonSeed) < 0.0001) {
+                     const ppx = pData.x * effectiveTileSize;
+                     const ppy = pData.y * effectiveTileSize;
+                     
+                     let pImg = assets.images.player;
+                     if (pData.classType === 'mage') pImg = assets.images.mage;
+                     if (pData.classType === 'archer') pImg = assets.images.archer;
+                     
+                     this.ctx.globalAlpha = 0.7; // Make others slightly ghosty
+                     this.ctx.drawImage(pImg, ppx, ppy, effectiveTileSize, effectiveTileSize);
+                     this.ctx.globalAlpha = 1.0;
+                     
+                     // Name tag
+                     this.ctx.fillStyle = 'white';
+                     this.ctx.font = '10px monospace';
+                     this.ctx.textAlign = 'center';
+                     const username = peers[clientId].username || 'Player';
+                     this.ctx.fillText(username, ppx + effectiveTileSize/2, ppy - 5);
+                }
+            });
+        }
+
         // Draw Player
         const px = game.player.x * effectiveTileSize;
         const py = game.player.y * effectiveTileSize;
@@ -112,6 +146,12 @@ export class Renderer {
         if (game.player.classType === 'archer') playerImg = assets.images.archer;
         
         this.ctx.drawImage(playerImg, px, py, effectiveTileSize, effectiveTileSize);
+        
+        // Player Name
+        this.ctx.fillStyle = '#f1c40f';
+        this.ctx.font = '10px monospace';
+        this.ctx.textAlign = 'center';
+        this.ctx.fillText("YOU", px + effectiveTileSize/2, py - 5);
 
         // Draw Effects
         const now = Date.now();

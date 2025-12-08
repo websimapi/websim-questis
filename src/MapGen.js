@@ -1,8 +1,29 @@
 // Simple dungeon generator
 export class MapGen {
-    constructor(width, height) {
+    constructor(width, height, seed) {
         this.width = width;
         this.height = height;
+        this.seed = seed || Math.random();
+        this.rng = this.sfc32(this.seed, this.seed + 1, this.seed + 2, this.seed + 3);
+    }
+
+    // Simple seeded RNG
+    sfc32(a, b, c, d) {
+        return function() {
+            a >>>= 0; b >>>= 0; c >>>= 0; d >>>= 0; 
+            var t = (a + b) | 0;
+            a = b ^ b >>> 9;
+            b = c + (c << 3) | 0;
+            c = (c << 21 | c >>> 11);
+            d = d + 1 | 0;
+            t = (t + d) | 0;
+            c = (c + t) | 0;
+            return (t >>> 0) / 4294967296;
+        }
+    }
+
+    rand() {
+        return this.rng();
     }
 
     generate() {
@@ -29,7 +50,7 @@ export class MapGen {
             }
 
             // Move randomly
-            const dir = Math.floor(Math.random() * 4);
+            const dir = Math.floor(this.rand() * 4);
             switch (dir) {
                 case 0: y--; break; // Up
                 case 1: y++; break; // Down
@@ -48,10 +69,23 @@ export class MapGen {
     }
 
     findFreeSpot(map) {
-        while (true) {
-            const x = Math.floor(Math.random() * this.width);
-            const y = Math.floor(Math.random() * this.height);
+        let attempts = 0;
+        while (attempts < 1000) {
+            const x = Math.floor(this.rand() * this.width);
+            const y = Math.floor(this.rand() * this.height);
             if (map[y][x] === 0) {
+                return { x, y };
+            }
+            attempts++;
+        }
+        // Fallback scan
+        for(let y=1; y<this.height-1; y++) {
+            for(let x=1; x<this.width-1; x++) {
+                if (map[y][x] === 0) return { x, y };
+            }
+        }
+        return { x: 1, y: 1 };
+    }
                 return { x, y };
             }
         }

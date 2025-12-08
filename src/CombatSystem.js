@@ -69,6 +69,7 @@ export class CombatSystem {
             soundManager.play('unlock');
             game.addLog(`Level Up! You are lvl ${game.player.level}`);
         }
+        game.save();
         game.updateStats();
     }
 

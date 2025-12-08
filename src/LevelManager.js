@@ -22,6 +22,7 @@ export class LevelManager {
         }
 
         game.level = levelNum;
+        game.player.floor = levelNum;
 
         if (!game.floors[levelNum]) {
             this.generateNewLevel(levelNum);
@@ -40,11 +41,9 @@ export class LevelManager {
             if (start) {
                 game.player.x = start.x;
                 game.player.y = start.y;
-            } else {
-                if (game.floors[levelNum].startPos) {
-                    game.player.x = game.floors[levelNum].startPos.x;
-                    game.player.y = game.floors[levelNum].startPos.y;
-                }
+            } else if (game.floors[levelNum].startPos) {
+                game.player.x = game.floors[levelNum].startPos.x;
+                game.player.y = game.floors[levelNum].startPos.y;
             }
         } else if (entryMethod === 'up') {
             const exit = game.objects.find(o => o.type === 'stairs');
@@ -52,17 +51,37 @@ export class LevelManager {
                 game.player.x = exit.x;
                 game.player.y = exit.y;
             }
+        } else if (entryMethod === 'load') {
+            // Keep current x/y from loaded data if valid, otherwise safe spot
+            if (game.map[game.player.y] && game.map[game.player.y][game.player.x] === 0) {
+                // Good
+            } else {
+                 if (game.floors[levelNum].startPos) {
+                    game.player.x = game.floors[levelNum].startPos.x;
+                    game.player.y = game.floors[levelNum].startPos.y;
+                }
+            }
         }
 
         game.addLog(`Floor ${game.level}`);
+        game.save();
         game.updateStats();
     }
 
     generateNewLevel(levelNum) {
         const game = this.game;
 
-        const isShop = levelNum > 1 && (levelNum % 4 === 0 || Math.random() < 0.1);
-        const isBossKeyFloor = Math.random() < 0.3;
+        // Use dungeon seed + floor num to create a stable seed for this floor
+        // Use a simple hash for string seed
+        const floorSeed = game.dungeonSeed + (levelNum * 0.1337); 
+        // We need MapGen to accept seed
+        
+        // Re-init simple RNG for bools below
+        // Actually, we should make isShop deterministic too
+        const rng = new MapGen(1,1, floorSeed).rng; 
+
+        const isShop = levelNum > 1 && (levelNum % 4 === 0 || rng() < 0.1);
+        const isBossKeyFloor = rng() < 0.3;
         const isBossGateFloor = levelNum % 5 === 0;
 
         let width = 25, height = 25;
@@ -84,7 +103,8 @@ export class LevelManager {
             objects.push({ type: 'stairs_up', x: 2, y: 6 });
             objects.push({ type: 'shopkeeper', x: 6, y: 5 });
         } else {
-            const gen = new MapGen(width, height);
+            // Seeded MapGen
+            const gen = new MapGen(width, height, floorSeed);
             let attempts = 0;
             while (attempts < 10) {
                 newMap = gen.generate();
@@ -114,7 +134,8 @@ export class LevelManager {
             }
 
             const enemyCount = 4 + Math.floor(levelNum * 0.8);
-            const gen2 = new MapGen(width, height);
+            // Use same seed for entity placement to ensure consistency
+            const gen2 = new MapGen(width, height, floorSeed + 1);
 
             for (let i = 0; i < enemyCount; i++) {
                 const pos = gen2.findFreeSpot(newMap);
@@ -124,7 +145,7 @@ export class LevelManager {
                 let hp = 3 + Math.floor(levelNum * 0.5);
                 let dmg = 1 + Math.floor(levelNum * 0.2);
 
-                if (levelNum >= 3 && Math.random() > 0.6) {
+                if (levelNum >= 3 && gen2.rand() > 0.6) {
                     eType = 'skeleton';
                     hp += 4;
                     dmg += 1;
@@ -133,7 +154,7 @@ export class LevelManager {
                 enemies.push({ x: pos.x, y: pos.y, hp, maxHp: hp, dmg, type: eType });
             }
 
-            if (Math.random() > 0.5) {
+            if (gen2.rand() > 0.5) {
                 const pos = gen2.findFreeSpot(newMap);
                 objects.push({ type: 'chest', x: pos.x, y: pos.y, opened: false });
             }
