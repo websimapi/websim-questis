@@ -174,6 +174,15 @@ export class LevelManager {
                 const pos = gen2.findFreeSpot(newMap);
                 objects.push({ type: 'chest', x: pos.x, y: pos.y, opened: false });
             }
+
+            // Altar Generation - Rare (15% chance per floor)
+            if (gen2.rand() < 0.15) {
+                 const pos = gen2.findFreeSpot(newMap);
+                 // 7 types: vitality, fortune, might, wisdom, shadow, protection, luck
+                 const types = ['vitality', 'fortune', 'might', 'wisdom', 'shadow', 'protection', 'luck'];
+                 const type = types[Math.floor(gen2.rand() * types.length)];
+                 objects.push({ type: 'altar', subtype: type, x: pos.x, y: pos.y });
+            }
         }
 
         game.floors[levelNum] = {

@@ -3,6 +3,7 @@ import { LevelManager } from './LevelManager.js';
 import { CombatSystem } from './CombatSystem.js';
 import { ShopSystem } from './ShopSystem.js';
 import { ArenaSystem } from './ArenaSystem.js';
+import { AltarSystem } from './AltarSystem.js';
 
 export class Game {
     constructor(persistence, slotIndex, loadData, newClass) {
@@ -16,20 +17,23 @@ export class Game {
         this.log = [];
         this.inShop = false;
         this.inArena = false;
+        this.showingAltarDialog = false;
         
         this.levelManager = new LevelManager(this);
         this.combat = new CombatSystem(this);
         this.shop = new ShopSystem(this);
         this.arenaSystem = new ArenaSystem(this);
+        this.altarSystem = new AltarSystem(this);
 
         if (loadData) {
             // Load existing
             this.player = JSON.parse(JSON.stringify(loadData));
+            // Ensure inventory/buffs exist for old saves
+            if (!this.player.inventory) this.player.inventory = {};
+            if (!this.player.buffs) this.player.buffs = [];
+            
             this.dungeonSeed = this.player.seed;
-            // Clear current floor-specifics to force regen based on seed if needed
-            // Actually, we need to regenerate the floor we are on
             this.level = this.player.floor;
-            // Note: `floors` cache is empty, so enterLevel will regen it using the seed logic
         } else {
             // New Game
             const playerClass = newClass || 'warrior';
@@ -46,7 +50,9 @@ export class Game {
                 level: 1, xp: 0, xpToNext: 20,
                 gold: 0, hasKey: false,
                 floor: 1,
-                seed: this.dungeonSeed
+                seed: this.dungeonSeed,
+                inventory: {}, // { itemId: count }
+                buffs: [] // { id, stat, val, duration, isCurse }
             };
             this.level = 1;
         }
@@ -102,13 +108,42 @@ export class Game {
     }
 
     updateStats() {
+        // Calculate effective stats from buffs
+        let effectiveMaxHp = this.player.maxHp;
+        
+        // Apply passive buffs to display (actual logic is distributed in combat)
+        // We only modify displayed maxHp for curses/buffs here to keep UI in sync
+        // But actual logic handles the caps.
+        
+        const buffsContainer = document.getElementById('buffs-container');
+        buffsContainer.innerHTML = '';
+        
+        this.player.buffs.forEach(b => {
+            const div = document.createElement('div');
+            div.className = `buff-indicator ${b.isCurse ? 'curse' : ''}`;
+            const durText = b.duration === 9999 ? '' : `(${b.duration} flr)`;
+            div.innerText = `${b.name || 'Buff'} ${durText}`;
+            buffsContainer.appendChild(div);
+            
+            if (b.stat === 'maxHpMult') effectiveMaxHp = Math.floor(effectiveMaxHp * b.val);
+            if (b.stat === 'maxHp') effectiveMaxHp += b.val;
+        });
+
+        // Clamp HP to effective max
+        if (this.player.hp > effectiveMaxHp) this.player.hp = effectiveMaxHp;
+
         document.getElementById('hp-val').innerText = this.player.hp;
-        document.getElementById('max-hp-val').innerText = this.player.maxHp;
+        document.getElementById('max-hp-val').innerText = effectiveMaxHp;
         document.getElementById('gold-val').innerText = this.player.gold;
         document.getElementById('lvl-val').innerText = this.player.level;
         document.getElementById('xp-val').innerText = this.player.xp;
         document.getElementById('xp-req-val').innerText = this.player.xpToNext;
         document.getElementById('level-text').innerText = `Floor: ${this.level}`;
+
+        // Inventory
+        const inv = this.player.inventory;
+        const items = Object.entries(inv).map(([k,v]) => `${k}:${v}`).join(' ');
+        document.getElementById('inventory-display').innerText = items ? `Bag: ${items}` : 'Bag: Empty';
 
         if (this.inShop) {
             document.getElementById('shop-gold').innerText = `Gold: ${this.player.gold}`;
@@ -171,18 +206,39 @@ export class Game {
     }
 
     interact() {
-        if (this.inShop) return;
+        if (this.inShop || this.showingAltarDialog) return;
+
+        // Check for loot on ground first
+        const loot = this.objects.find(o => o.type === 'loot' && o.x === this.player.x && o.y === this.player.y);
+        if (loot) {
+            this.combat.pickupLoot(loot);
+            return;
+        }
 
         const obj = this.objects.find(o => o.x === this.player.x && o.y === this.player.y);
         const shopkeeper = this.objects.find(o => o.type === 'shopkeeper' && Math.abs(o.x - this.player.x) <= 1 && Math.abs(o.y - this.player.y) <= 1);
+        const altar = this.objects.find(o => o.type === 'altar' && Math.abs(o.x - this.player.x) <= 1 && Math.abs(o.y - this.player.y) <= 1);
 
         if (shopkeeper) {
             this.shop.openShop();
             return;
         }
 
+        if (altar) {
+            this.altarSystem.interact(altar);
+            return;
+        }
+
         if (obj) {
             if (obj.type === 'stairs') {
+                // Check curse progress
+                if (this.enemies.length === 0) {
+                    this.player.buffs.forEach(b => {
+                        if (b.isCurse && b.duration > 0) b.duration--;
+                    });
+                    this.player.buffs = this.player.buffs.filter(b => b.duration > 0);
+                }
+                
                 if (this.inArena) {
                     this.arenaSystem.leaveArena();
                 } else {

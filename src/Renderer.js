@@ -78,9 +78,29 @@ export class Renderer {
             if (obj.type === 'chest') img = assets.images.chest;
             if (obj.type === 'key') img = assets.images.key;
             if (obj.type === 'shopkeeper') img = assets.images.shopkeeper;
+            if (obj.type === 'altar') img = assets.images.altar;
+            if (obj.type === 'loot') {
+                if (obj.item === 'bone') img = assets.images.bone;
+                else if (obj.item === 'slime_goo') img = assets.images.slime_goo;
+                else img = assets.images.loot_bag;
+            }
 
             if (img) {
+                // If altar, maybe tint it based on subtype?
+                if (obj.type === 'altar' && obj.subtype === 'shadow') {
+                    this.ctx.filter = 'hue-rotate(270deg)'; // Purple/Red ish
+                }
+                
                 this.ctx.drawImage(img, px, py, effectiveTileSize, effectiveTileSize);
+                
+                this.ctx.filter = 'none';
+
+                // Loot count
+                if (obj.type === 'loot' && obj.count > 1) {
+                    this.ctx.fillStyle = 'white';
+                    this.ctx.font = '10px monospace';
+                    this.ctx.fillText(obj.count, px + effectiveTileSize - 5, py + effectiveTileSize - 2);
+                }
             }
         });
 

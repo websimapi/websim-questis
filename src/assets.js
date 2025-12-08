@@ -16,7 +16,13 @@ export const assets = {
         slash: new Image(),
         magic_hit: new Image(),
         arrow_hit: new Image(),
-        shopkeeper: new Image()
+        shopkeeper: new Image(),
+        bone: new Image(),
+        slime_goo: new Image(),
+        demon_horn: new Image(),
+        altar: new Image(),
+        loot_bag: new Image(),
+        rare_item: new Image()
     },
     sounds: {
         step: "step.mp3",

@@ -5,6 +5,9 @@ import { Renderer } from './Renderer.js';
 import { Input } from './Input.js';
 import { Persistence } from './Persistence.js';
 
+// Preload check to ensure AltarSystem loads if I missed import
+// Actually main.js doesn't need to import AltarSystem, Game does.
+
 const canvas = document.getElementById('game-canvas');
 const renderer = new Renderer(canvas);
 const input = new Input();
