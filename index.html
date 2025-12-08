@@ -46,6 +46,29 @@
                     </div>
                 </div>
             </div>
+
+            <div id="shop-ui" style="display: none;">
+                <h2>Dungeon Shop</h2>
+                <div id="shop-gold">Gold: 0</div>
+                <div class="shop-items">
+                    <div class="shop-item" onclick="window.buyItem('potion')">
+                        <div class="icon">❤️</div>
+                        <div>Heal Potion</div>
+                        <div class="cost">50g</div>
+                    </div>
+                    <div class="shop-item" onclick="window.buyItem('upgrade')">
+                        <div class="icon">⚔️</div>
+                        <div>Weapon Up</div>
+                        <div class="cost">100g</div>
+                    </div>
+                    <div class="shop-item" onclick="window.buyItem('maxhp')">
+                        <div class="icon">🛡️</div>
+                        <div>Max HP Up</div>
+                        <div class="cost">100g</div>
+                    </div>
+                </div>
+                <button id="close-shop-btn">Leave</button>
+            </div>
         </div>
         <div id="mobile-controls-zone"></div>
         <button id="interact-btn">ACTION</button>

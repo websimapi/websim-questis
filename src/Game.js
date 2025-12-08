@@ -40,11 +40,59 @@ export class Game {
         this.enemies = [];
         this.objects = [];
         this.log = [];
+        this.effects = [];
+        this.inShop = false;
         
         this.initLevel();
+
+        // Setup global buy handler
+        window.buyItem = (item) => this.buyItem(item);
+        const closeBtn = document.getElementById('close-shop-btn');
+        if (closeBtn) closeBtn.onclick = () => this.closeShop();
     }
 
     initLevel() {
+        // Check if shop floor (Every 4 levels or 10% chance, but ensuring first floor is normal)
+        const isShop = this.level > 1 && (this.level % 4 === 0 || Math.random() < 0.05);
+
+        if (isShop) {
+            this.initShopLevel();
+        } else {
+            this.initNormalLevel();
+        }
+    }
+
+    initShopLevel() {
+        this.mapWidth = 10;
+        this.mapHeight = 10;
+        
+        // Simple room
+        this.map = [];
+        for(let y=0; y<this.mapHeight; y++) {
+            const row = [];
+            for(let x=0; x<this.mapWidth; x++) {
+                if (y===0 || y===this.mapHeight-1 || x===0 || x===this.mapWidth-1) row.push(1);
+                else row.push(0);
+            }
+            this.map.push(row);
+        }
+
+        this.player.x = 2;
+        this.player.y = 5;
+        this.enemies = [];
+        this.objects = [
+            { type: 'shopkeeper', x: 5, y: 5 },
+            { type: 'stairs', x: 7, y: 5 }
+        ];
+        
+        // Auto grant key for shop levels so they can leave freely
+        this.player.hasKey = true; 
+        
+        this.addLog(`Floor ${this.level}: Safe Zone`);
+        this.updateStats();
+    }
+
+    initNormalLevel() {
         const gen = new MapGen(this.mapWidth, this.mapHeight);
         
         // Retry loop to ensure valid map with connected objectives
@@ -137,6 +185,10 @@ export class Game {
         document.getElementById('xp-req-val').innerText = this.player.xpToNext;
         document.getElementById('level-text').innerText = `Floor: ${this.level}`;
         
+        if (this.inShop) {
+             document.getElementById('shop-gold').innerText = `Gold: ${this.player.gold}`;
+        }
+
         const questText = document.getElementById('quest-text');
         if (this.player.hasKey) {
             questText.innerText = "Quest: Enter Stairs";
@@ -148,6 +200,8 @@ export class Game {
     }
 
     movePlayer(dx, dy) {
+        if (this.inShop) return; // Prevent movement while shopping
+
         const newX = this.player.x + dx;
         const newY = this.player.y + dy;
 
@@ -171,8 +225,15 @@ export class Game {
     }
 
     interact() {
+        if (this.inShop) return;
+
         // Check objects under player
         const obj = this.objects.find(o => o.x === this.player.x && o.y === this.player.y);
+        
+        // Also check adjacent for shopkeeper interaction (since we can't stand ON him usually if he was solid, 
+        // but here objects are not solid, so we can check overlap or distance)
+        // Let's support overlapping logic first.
+        
         if (obj) {
             if (obj.type === 'stairs') {
                 if (this.player.hasKey) {
@@ -197,18 +258,72 @@ export class Game {
                 this.addLog(`Found ${gold} gold!`);
                 // Remove chest visually or change to open? For now remove
                 this.objects = this.objects.filter(o => o !== obj);
+            } else if (obj.type === 'shopkeeper') {
+                this.openShop();
             }
         }
     }
 
+    openShop() {
+        this.inShop = true;
+        document.getElementById('shop-ui').style.display = 'flex';
+        this.updateStats();
+    }
+
+    closeShop() {
+        this.inShop = false;
+        document.getElementById('shop-ui').style.display = 'none';
+    }
+
+    buyItem(item) {
+        let cost = 0;
+        if (item === 'potion') cost = 50;
+        if (item === 'upgrade') cost = 100;
+        if (item === 'maxhp') cost = 100;
+
+        if (this.player.gold >= cost) {
+            this.player.gold -= cost;
+            soundManager.play('buy');
+            
+            if (item === 'potion') {
+                this.player.hp = Math.min(this.player.hp + 5, this.player.maxHp);
+                this.addLog("Healed 5 HP!");
+            }
+            if (item === 'upgrade') {
+                this.player.dmgMod += 1;
+                this.addLog("Weapon Upgraded!");
+            }
+            if (item === 'maxhp') {
+                this.player.maxHp += 2;
+                this.player.hp += 2;
+                this.addLog("Max HP Increased!");
+            }
+            this.updateStats();
+        } else {
+            soundManager.play('locked');
+            this.addLog("Not enough gold!");
+        }
+    }
+
+    spawnEffect(x, y, type) {
+        this.effects.push({
+            x, y, type,
+            startTime: Date.now(),
+            duration: 250 // ms
+        });
+    }
+
     attackEnemy(enemy) {
         let dmg = 1;
-        
+        let effectType = 'slash';
+
         // Class calculations
         if (this.player.classType === 'mage') {
             dmg = 2 + Math.floor(this.player.level / 2); // Mage scales damage faster
+            effectType = 'magic';
         } else if (this.player.classType === 'archer') {
             dmg = 1 + Math.floor(this.player.level / 3);
+            effectType = 'arrow';
             if (Math.random() < 0.3) { // 30% Crit chance
                 dmg *= 2;
                 this.addLog("Critical Hit!");
@@ -217,6 +332,9 @@ export class Game {
             // Warrior
             dmg = 1 + Math.floor(this.player.level / 3);
         }
+
+        // Add visual effect
+        this.spawnEffect(enemy.x, enemy.y, effectType);
 
         enemy.hp -= dmg;
         soundManager.play('attack');
@@ -258,10 +376,13 @@ export class Game {
                 this.player.hp -= enemy.dmg;
                 soundManager.play('hit');
                 this.addLog(`Blob hits you!`);
+                
+                // Enemy attack effect? Maybe later.
+                
                 if (this.player.hp <= 0) {
-                    this.addLog(`GAME OVER. Reloading...`);
-                    soundManager.play('hit'); // Death sound?
-                    setTimeout(() => location.reload(), 2000);
+                    this.addLog(`YOU DIED! Respawning...`);
+                    soundManager.play('hit'); 
+                    setTimeout(() => this.respawn(), 1000);
                 }
             } else if (dist < 6) {
                 // Chase
@@ -291,6 +412,17 @@ export class Game {
     isOccupied(x, y) {
         if (x === this.player.x && y === this.player.y) return true;
         if (this.enemies.some(e => e.x === x && e.y === y)) return true;
+        if (this.objects.some(o => o.x === x && o.y === y && o.type === 'shopkeeper')) return true; // Treat shopkeeper as obstacle
         return false;
+    }
+
+    respawn() {
+        // Penalty
+        const loss = Math.floor(this.player.xp * 0.05);
+        this.player.xp = Math.max(0, this.player.xp - loss);
+        this.player.hp = this.player.maxHp;
+        
+        this.addLog(`Respawned. Lost ${loss} XP.`);
+        this.initLevel(); // Regenerate level
     }
 }

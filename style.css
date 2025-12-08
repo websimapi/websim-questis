@@ -182,3 +182,65 @@ canvas {
     margin: 0;
     color: #ccc;
 }
+
+#shop-ui {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0, 0, 0, 0.95);
+    border: 3px solid var(--accent-color);
+    border-radius: 10px;
+    padding: 20px;
+    width: 300px;
+    text-align: center;
+    color: white;
+    z-index: 50;
+    pointer-events: auto;
+    display: none;
+    flex-direction: column;
+    gap: 15px;
+}
+
+#shop-ui h2 {
+    margin: 0;
+    color: var(--accent-color);
+}
+
+.shop-items {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.shop-item {
+    background: #333;
+    border: 1px solid #555;
+    padding: 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    cursor: pointer;
+    border-radius: 5px;
+}
+
+.shop-item:active {
+    background: #444;
+}
+
+.shop-item .cost {
+    color: var(--accent-color);
+    font-weight: bold;
+}
+
+#close-shop-btn {
+    background: #555;
+    color: white;
+    border: none;
+    padding: 10px;
+    border-radius: 5px;
+    margin-top: 10px;
+    cursor: pointer;
+    font-family: inherit;
+    font-weight: bold;
+}

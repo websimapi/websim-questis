@@ -75,6 +75,7 @@ export class Renderer {
             if (obj.type === 'stairs') img = assets.images.stairs;
             if (obj.type === 'chest') img = assets.images.chest;
             if (obj.type === 'key') img = assets.images.key;
+            if (obj.type === 'shopkeeper') img = assets.images.shopkeeper;
 
             if (img) {
                 this.ctx.drawImage(img, px, py, effectiveTileSize, effectiveTileSize);
@@ -105,6 +106,24 @@ export class Renderer {
         if (game.player.classType === 'archer') playerImg = assets.images.archer;
         
         this.ctx.drawImage(playerImg, px, py, effectiveTileSize, effectiveTileSize);
+
+        // Draw Effects
+        const now = Date.now();
+        game.effects = game.effects.filter(ef => now - ef.startTime < ef.duration);
+        game.effects.forEach(ef => {
+            const epx = ef.x * effectiveTileSize;
+            const epy = ef.y * effectiveTileSize;
+            
+            // Simple fade out or just draw
+            this.ctx.globalAlpha = 1 - ((now - ef.startTime) / ef.duration);
+            
+            let efImg = assets.images.slash;
+            if (ef.type === 'magic') efImg = assets.images.magic_hit;
+            if (ef.type === 'arrow') efImg = assets.images.arrow_hit;
+            
+            this.ctx.drawImage(efImg, epx, epy, effectiveTileSize, effectiveTileSize);
+            this.ctx.globalAlpha = 1.0;
+        });
 
         this.ctx.restore();
     }
